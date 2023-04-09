@@ -87,19 +87,19 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	n := r.URL.Query().Get("n")
 	start := r.URL.Query().Get("start")
-	i := rand.Int31n(5)
 	engins := os.Getenv("engins")
 	fmt.Println("q=" + q)
 	fmt.Println("n=" + n)
 	fmt.Println("engins=" + engins)
 	json.Unmarshal([]byte(engins), &e)
+	i := rand.Int31n(int32(len(e)))
 	fmt.Println(e)
 	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%s", origin, q, e[i].Key, e[i].Cx, n)
 	if start != "" {
 		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%s&num=%s", origin, q, e[i].Key, e[i].Cx, start, n)
 	}
 	b := fetch(url)
-	generateHTML(w, b, []string{"layout", "search"})
+	generateHTML(w, string(b), []string{"layout", "search"})
 }
 
 func generateHTML(w http.ResponseWriter, data any, fileNames []string) {
