@@ -93,7 +93,10 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("engins=" + engins)
 	json.Unmarshal([]byte(engins), &e)
 	i := rand.Int31n(int32(len(e)))
-	fmt.Println(e)
+	fmt.Printf("i=%d", i)
+	fmt.Println(e[i])
+	fmt.Println(e[i].Key)
+	fmt.Println(e[i].Cx)
 	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%s", origin, q, e[i].Key, e[i].Cx, n)
 	if start != "" {
 		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%s&num=%s", origin, q, e[i].Key, e[i].Cx, start, n)
