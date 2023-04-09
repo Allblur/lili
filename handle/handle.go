@@ -102,7 +102,9 @@ func Search(w http.ResponseWriter, r *http.Request) {
 		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%s&num=%s", origin, q, e[i].Key, e[i].Cx, start, n)
 	}
 	b := fetch(url)
-	generateHTML(w, string(b), []string{"layout", "search"})
+	var data map[string]any
+	json.Unmarshal(b, &data)
+	generateHTML(w, data, []string{"layout", "search"})
 }
 
 func generateHTML(w http.ResponseWriter, data any, fileNames []string) {
