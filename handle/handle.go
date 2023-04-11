@@ -96,7 +96,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		Name: "golang template parse",
 	}
 	files := []string{"layout", "index"}
-	generateHTML(w, data, files)
+	generateHTML(w, data, files, "layout")
 }
 
 func Search(w http.ResponseWriter, r *http.Request) {
@@ -134,14 +134,14 @@ func Search(w http.ResponseWriter, r *http.Request) {
 		}
 		pag = append(pag, Pag{Num: v, Cls: cls, Q: q, IsOn: ison})
 	}
+	if q == "" || engins == "" {
+		generateHTML(w, data, []string{"searchlayout", "search"}, "layout")
+		return
+	}
 	json.Unmarshal([]byte(engins), &e)
 	i := rand.Int31n(int32(len(e)))
 	fmt.Println(e[i].Key)
 	fmt.Println(e[i].Cx)
-	if q == "" {
-		generateHTML(w, data, []string{"layout", "search"})
-		return
-	}
 	str := strings.ReplaceAll(q, " ", "")
 	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, e[i].Key, e[i].Cx, 10)
 	if start != "" {
@@ -150,7 +150,7 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("url：" + url)
 	b, err := fetch(url)
 	if err != nil {
-		generateHTML(w, data, []string{"layout", "search"})
+		generateHTML(w, data, []string{"searchlayout", "search"}, "layout")
 		return
 	}
 	var searchResult *SearchResult
@@ -164,14 +164,14 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	data.Start = s
 	data.HasItems = hasItems
 	data.Pag = pag
-	generateHTML(w, data, []string{"layout", "search"})
+	generateHTML(w, data, []string{"searchlayout", "search"}, "layout")
 }
 
 func unescaped(x string) any {
 	return template.HTML(x)
 }
 
-func generateHTML(w http.ResponseWriter, data any, fileNames []string) {
+func generateHTML(w http.ResponseWriter, data any, fileNames []string, layout string) {
 	var files []string
 	t := template.New("")
 	t = t.Funcs(template.FuncMap{"unescaped": unescaped})
@@ -179,7 +179,7 @@ func generateHTML(w http.ResponseWriter, data any, fileNames []string) {
 		files = append(files, fmt.Sprintf("templates/%s.html", file))
 	}
 	templates := template.Must(t.ParseFiles(files...))
-	templates.ExecuteTemplate(w, "layout", data)
+	templates.ExecuteTemplate(w, layout, data)
 }
 
 func fetch(url string) ([]byte, error) {
