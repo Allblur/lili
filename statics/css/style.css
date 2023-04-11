@@ -2,3 +2,4 @@
 .b_pag_wrap{display: flex;}
 .b_pag_wrap .b_pag_item a{display: block; min-width: 40px; margin-right: 20px; line-height: 42px; border:0; border-bottom: 3px solid transparent;color: #71777d;text-align:center;}
 .b_pag_wrap .b_pag_item.on a{border-color: #174ae4; color: #111 !important;}
+.app{width:100%;height:100%;overflow: hidden;}
