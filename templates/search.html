@@ -1,5 +1,69 @@
 {{ define "content" }}
-<script>
-  var __initData__ = {{ . }};
-</script>
+<div class="searchPage">
+  <div class="searchPage__header" id="b_header">
+    <div class="searchPage__headerBody">
+      <form action="/search" id="sb_form" class="hasmic">
+        <a class="b_logoArea" target="_blank" href="/search">
+          <h1 class="b_logo" title="搜索"></h1>
+        </a>
+        <div class="b_searchboxForm" role="search" data-bm="2">
+          <div id="sb_search">
+            <a tabindex="-1" href="javascript:void(0);" h="ID=SERP,5035.1">
+              <div id="sb_go_par" data-sbtip="搜索网页">
+                <div id="b_icon_spyglass" class="sb_icon"></div>
+                <input type="submit" class="b_searchboxSubmit" id="sb_form_go" tabindex="0">
+              </div>
+            </a>
+          </div>
+          <input class="b_searchbox" id="sb_form_q" name="q" aria-autocomplete="both" aria-label="在此处输入你的搜索 — 输入时会显示搜索建议" type="search" value="{{ .Q }}" maxlength="100" dir="" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder="有问题尽管问我..." aria-controls="sw_as">
+          <div id="sb_clt" class="sb_clrhov" data-second-sbtipx="清除" data-sbtipx="清除">
+            <a id="sw_clx" data-second-href="javascript:void(0)" tabindex="0" aria-label="清除本文" role="button">
+              <div class="sw_close"></div>
+            </a>
+          </div>
+          <div class="mic_cont icon partner" data-preload="true">
+            <div id="vs_mic_icon" class="mic_icon sb_icon"></div>
+            <div class="ovr_cont">
+              <div class="b_icon tooltip" role="button" tabindex="0" aria-label="语音搜索" data-sbtipx="语音搜索" data-tooltip="语音搜索"></div>
+            </div>
+          </div>
+          <input id="sa_start" name="start" value="1" type="hidden">
+          <input id="sa_qs" name="lr" value="lang_zh-CN" type="hidden">
+          <input type="hidden" value="imgSize" name="large">
+          <div id="sw_as"></div>
+        </div>
+      </form>
+    </div>
+  </div>
+  <section class="b_result">
+    <div id="b_content">
+      <div id="b_results">
+        {{ if .HasItems }}
+        {{ range .Items }}
+        <div class="b_algo b_result_items">
+          <h2><a href="{{.Link}}" target="_blank">{{.HtmlTitle | unescaped}}</a></h2>
+          <div class="b_dec">
+            <div class="b_attribution">
+              <cite>{{.DisplayLink}}</cite>
+            </div>
+            <div class="b_snippet">
+              {{.HtmlSnippet | unescaped}}
+            </div>
+          </div>
+        </div>
+        {{ end }}
+        <div class="b_pag">
+          <div class="b_pag_wrap">
+            {{range .Pag}}
+            <div class="{{.Cls}} b_pag_item">
+              <a href="/search?q={{.Q}}&start={{.Num}}&lr=lang_zh&imgSize=large" target="_self">{{.Num}}</a>
+            </div>
+            {{end}}
+          </div>
+        </div>
+        {{ end }}
+      </div>
+    </div>
+  </section>
+</div>
 {{ end }}
