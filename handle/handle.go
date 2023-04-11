@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Engin struct {
@@ -137,15 +138,16 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	i := rand.Int31n(int32(len(e)))
 	fmt.Println(e[i].Key)
 	fmt.Println(e[i].Cx)
-	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, q, e[i].Key, e[i].Cx, 10)
-	if start != "" {
-		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, q, e[i].Key, e[i].Cx, (index-1)*10+1, 10)
-	}
-	fmt.Println("url：" + url)
 	if q == "" {
 		generateHTML(w, data, []string{"layout", "search"})
 		return
 	}
+	str := strings.ReplaceAll(q, " ", "")
+	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, e[i].Key, e[i].Cx, 10)
+	if start != "" {
+		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, e[i].Key, e[i].Cx, (index-1)*10+1, 10)
+	}
+	fmt.Println("url：" + url)
 	b, err := fetch(url)
 	if err != nil {
 		generateHTML(w, data, []string{"layout", "search"})
