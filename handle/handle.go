@@ -1,6 +1,8 @@
 package handle
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -85,7 +87,21 @@ type Result struct {
 	Pag      []Pag
 }
 
+type GptApiMessages struct {
+	Role    string
+	Content string
+}
+
+type GptApiQueryParams struct {
+	Key         string
+	Messages    []GptApiMessages
+	Model       string
+	Temperature float32
+}
+
 func Index(w http.ResponseWriter, r *http.Request) {
+	var gptApiQueryParams GptApiQueryParams
+	fmt.Println(gptApiQueryParams)
 	fmt.Println(r.Cookies())
 	for _, cookie := range r.Cookies() {
 		fmt.Println("cookie name == " + cookie.Name + "\ncookie value == " + cookie.Value)
@@ -164,7 +180,54 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	data.Start = s
 	data.HasItems = hasItems
 	data.Pag = pag
+	fmt.Println("fetch end")
 	generateHTML(w, data, []string{"searchlayout", "search"}, "layout")
+}
+
+func Test(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	content := r.URL.Query().Get("content")
+	requestBody := GptApiQueryParams{
+		Key:         key,
+		Model:       "gpt-3.5-turbo",
+		Temperature: 0.75,
+		Messages: []GptApiMessages{
+			{Role: "user", Content: content},
+		},
+	}
+	requestBodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost,
+		"https://api.openai.com/v1/chat/completions",
+		bytes.NewBuffer(requestBodyBytes))
+
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// 处理stream结果
+	// 假设stream数据是一行一行的文本，以换行符分隔
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fmt.Println(line)
+		// 处理每一行数据
+	}
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
+	fmt.Fprint(w, "api test")
 }
 
 func unescaped(x string) any {
