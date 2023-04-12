@@ -271,9 +271,18 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
-		// line := scanner.Text()
-		w.Write([]byte(scanner.Text()))
-		w.(http.Flusher).Flush()
+		var ChatCompletionStream ChatCompletionStreamResponse
+		line := scanner.Text()
+		if strings.HasPrefix(line, "data: ") && line != "data: [DONE]" {
+			err = json.Unmarshal([]byte(line), &ChatCompletionStream)
+			if err == nil {
+				byte, err := json.Marshal(ChatCompletionStream)
+				if err == nil {
+					w.Write(byte)
+					w.(http.Flusher).Flush()
+				}
+			}
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Println(err)
