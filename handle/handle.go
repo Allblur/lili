@@ -212,7 +212,13 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("access-control-allow-headers", "authorization, Content-Type")
+	w.Header().Set("access-control-allow-methods", "*")
+	w.Header().Set("access-control-allow-origin", "*")
+	w.Header().Set("cross-origin-embedder-policy", "require-corp")
+	w.Header().Set("cross-origin-opener-policy", "same-origin")
+	w.Header().Set("cross-origin-resource-policy", "same-origin")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintf(w, "Params Don't null")
@@ -258,7 +264,9 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiParams.Key))
-
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Connection", "keep-alive")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
