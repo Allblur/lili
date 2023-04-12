@@ -88,20 +88,25 @@ type Result struct {
 }
 
 type GptApiMessages struct {
-	Role    string
-	Content string
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 type GptApiQueryParams struct {
-	Key         string
-	Messages    []GptApiMessages
-	Model       string
-	Temperature float32
+	Messages    []GptApiMessages `json:"messages"`
+	Model       string           `json:"model"`
+	Temperature float32          `json:"temperature"`
+	Stream      bool             `json:"stream"`
+}
+
+type ApiParams struct {
+	Key string `json:"key"`
+	GptApiQueryParams
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
-	var gptApiQueryParams GptApiQueryParams
-	fmt.Println(gptApiQueryParams)
+	var apiParams ApiParams
+	fmt.Println(apiParams.Model)
 	fmt.Println(r.Cookies())
 	for _, cookie := range r.Cookies() {
 		fmt.Println("cookie name == " + cookie.Name + "\ncookie value == " + cookie.Value)
@@ -184,35 +189,64 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	generateHTML(w, data, []string{"searchlayout", "search"}, "layout")
 }
 
-func Test(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
-	content := r.URL.Query().Get("content")
+func Stream(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "Params Don't null")
+		return
+	}
+	defer r.Body.Close()
+	var apiParams ApiParams
+	err = json.Unmarshal(body, &apiParams)
+	if err != nil {
+		fmt.Println(err)
+		// w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Invalid JSON format")
+		return
+	}
+	fmt.Printf("key=%s\n", apiParams.Key)
+	if apiParams.Model == "" {
+		apiParams.Model = "gpt-3.5-turbo"
+	}
+	if apiParams.Temperature == 0 {
+		apiParams.Temperature = 0.75
+	}
 	requestBody := GptApiQueryParams{
-		Key:         key,
-		Model:       "gpt-3.5-turbo",
-		Temperature: 0.75,
-		Messages: []GptApiMessages{
-			{Role: "user", Content: content},
-		},
+		Stream:      true,
+		Model:       apiParams.Model,
+		Temperature: apiParams.Temperature,
+		Messages:    apiParams.Messages,
 	}
 	requestBodyBytes, err := json.Marshal(requestBody)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		fmt.Fprint(w, "Invalid JSON format, api")
+		return
 	}
-
+	fmt.Println(string(requestBodyBytes))
 	req, err := http.NewRequest(http.MethodPost,
 		"https://api.openai.com/v1/chat/completions",
 		bytes.NewBuffer(requestBodyBytes))
 
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		fmt.Fprint(w, "Network error")
+		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiParams.Key))
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		fmt.Fprint(w, "Network error, api")
+		return
 	}
 	defer resp.Body.Close()
 
@@ -221,13 +255,16 @@ func Test(w http.ResponseWriter, r *http.Request) {
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
 		line := scanner.Text()
+		fmt.Println("print line")
 		fmt.Println(line)
 		// 处理每一行数据
 	}
 	if err := scanner.Err(); err != nil {
-		panic(err)
+		fmt.Println(err)
+		fmt.Fprint(w, "stream error")
+		return
 	}
-	fmt.Fprint(w, "api test")
+	fmt.Fprint(w, "test successful")
 }
 
 func unescaped(x string) any {

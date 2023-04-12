@@ -11,7 +11,7 @@ func main() {
 	mux.Handle("/statics/", http.StripPrefix("/statics/", files))
 	mux.HandleFunc("/", handle.Index)
 	mux.HandleFunc("/search", handle.Search)
-	mux.HandleFunc("/test", handle.Test)
+	mux.HandleFunc("/stream", handle.Stream)
 
 	server := &http.Server{
 		Addr:    "0.0.0.0:8080",
