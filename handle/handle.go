@@ -273,16 +273,12 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	for scanner.Scan() {
 		var chatCompletionStream ChatCompletionStreamResponse
 		line := scanner.Text()
+		str := "data: "
 		fmt.Println(line + "\n")
-		if strings.HasPrefix(line, "data: ") && line != "data: [DONE]" {
-			err = json.Unmarshal([]byte(line), &chatCompletionStream)
-			fmt.Println(err)
-			fmt.Print("\n ^^^^^^err")
+		if strings.HasPrefix(line, str) && line != "data: [DONE]" {
+			err = json.Unmarshal([]byte(line[len(str):]), &chatCompletionStream)
 			if err == nil {
 				byte, err := json.Marshal(chatCompletionStream)
-				fmt.Println(byte)
-				fmt.Print("\n ^^^^^^byte")
-				fmt.Println(err)
 				if err == nil {
 					w.Write(byte)
 					w.(http.Flusher).Flush()
