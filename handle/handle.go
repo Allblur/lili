@@ -99,6 +99,24 @@ type GptApiQueryParams struct {
 	Stream      bool             `json:"stream"`
 }
 
+type ChatCompletionStreamChoiceDelta struct {
+	Content string `json:"content"`
+}
+
+type ChatCompletionStreamChoice struct {
+	Index        int                             `json:"index"`
+	Delta        ChatCompletionStreamChoiceDelta `json:"delta"`
+	FinishReason string                          `json:"finish_reason"`
+}
+
+type ChatCompletionStreamResponse struct {
+	ID      string                       `json:"id"`
+	Object  string                       `json:"object"`
+	Created int64                        `json:"created"`
+	Model   string                       `json:"model"`
+	Choices []ChatCompletionStreamChoice `json:"choices"`
+}
+
 type ApiParams struct {
 	Key string `json:"key"`
 	GptApiQueryParams
@@ -251,20 +269,18 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	// 处理stream结果
-	// 假设stream数据是一行一行的文本，以换行符分隔
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
-		line := scanner.Text()
-		fmt.Println("print line")
-		fmt.Println(line)
-		// 处理每一行数据
+		// line := scanner.Text()
+		w.Write([]byte(scanner.Text()))
+		w.(http.Flusher).Flush()
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, "stream error")
 		return
 	}
-	fmt.Fprint(w, "test successful")
+	// fmt.Fprint(w, "test successful")
 }
 
 func unescaped(x string) any {
