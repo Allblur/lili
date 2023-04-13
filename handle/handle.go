@@ -278,11 +278,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
-	if err := scanner.Err(); err != nil {
-		fmt.Println(err)
-		fmt.Fprint(w, "read stream failed.")
-		return
-	}
+
 	for scanner.Scan() {
 		var chatCompletionStream ChatCompletionStreamResponse
 		headerData := []byte("data: ")
@@ -297,6 +293,11 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 				w.(http.Flusher).Flush()
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, "read stream failed.")
+		return
 	}
 	// fmt.Fprint(w, "test successful")
 }
