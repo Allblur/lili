@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-type Engin struct {
+type Account struct {
 	Name string
 	Key  string
 	Cx   string
@@ -135,16 +135,16 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		Name: "golang template parse",
 	}
 	files := []string{"layout", "index"}
-	generateHTML(w, data, files, "layout")
+	generateHTML(w, data, files)
 }
 
 func Search(w http.ResponseWriter, r *http.Request) {
-	var e []Engin
+	var accounts []Account
 	var pag []Pag
 	origin := "https://www.googleapis.com/customsearch/v1"
 	q := r.URL.Query().Get("q")
 	start := r.URL.Query().Get("start")
-	engins := os.Getenv("engins")
+	a := os.Getenv("ACCOUNT")
 	data := &Result{
 		Items:    []Items{},
 		Q:        q,
@@ -173,23 +173,23 @@ func Search(w http.ResponseWriter, r *http.Request) {
 		}
 		pag = append(pag, Pag{Num: v, Cls: cls, Q: q, IsOn: ison})
 	}
-	if q == "" || engins == "" {
-		generateHTML(w, data, []string{"searchlayout", "search"}, "layout")
+	if q == "" || a == "" {
+		generateHTML(w, data, []string{"searchlayout", "search"})
 		return
 	}
-	json.Unmarshal([]byte(engins), &e)
-	i := rand.Int31n(int32(len(e)))
-	fmt.Println(e[i].Key)
-	fmt.Println(e[i].Cx)
+	json.Unmarshal([]byte(a), &accounts)
+	i := rand.Int31n(int32(len(accounts)))
+	fmt.Println(accounts[i].Key)
+	fmt.Println(accounts[i].Cx)
 	str := strings.ReplaceAll(q, " ", "")
-	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, e[i].Key, e[i].Cx, 10)
+	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, 10)
 	if start != "" {
-		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, e[i].Key, e[i].Cx, (index-1)*10+1, 10)
+		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
 	}
 	fmt.Println("url：" + url)
 	b, err := fetch(url)
 	if err != nil {
-		generateHTML(w, data, []string{"searchlayout", "search"}, "layout")
+		generateHTML(w, data, []string{"searchlayout", "search"})
 		return
 	}
 	var searchResult *SearchResult
@@ -204,7 +204,7 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	data.HasItems = hasItems
 	data.Pag = pag
 	fmt.Println("fetch end")
-	generateHTML(w, data, []string{"searchlayout", "search"}, "layout")
+	generateHTML(w, data, []string{"searchlayout", "search"})
 }
 
 func Stream(w http.ResponseWriter, r *http.Request) {
@@ -278,26 +278,25 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
-	for scanner.Scan() {
-		var chatCompletionStream ChatCompletionStreamResponse
-		line := scanner.Text()
-		str := "data: "
-		fmt.Println(line + "\n")
-		if strings.HasPrefix(line, str) && line != "data: [DONE]" {
-			err = json.Unmarshal([]byte(line[len(str):]), &chatCompletionStream)
-			if err == nil {
-				byte, err := json.Marshal(chatCompletionStream)
-				if err == nil {
-					w.Write(byte)
-					w.(http.Flusher).Flush()
-				}
-			}
-		}
-	}
 	if err := scanner.Err(); err != nil {
 		fmt.Println(err)
-		fmt.Fprint(w, "stream error")
+		fmt.Fprint(w, "read stream failed.")
 		return
+	}
+	for scanner.Scan() {
+		var chatCompletionStream ChatCompletionStreamResponse
+		headerData := []byte("data: ")
+		line := bytes.TrimSpace(scanner.Bytes())
+		fmt.Print(line)
+		fmt.Print("\nline^^^^^^^")
+		if bytes.HasPrefix(line, headerData) && string(line) != "data: [DONE]" {
+			line = bytes.TrimPrefix(line, headerData)
+			err = json.Unmarshal(line, &chatCompletionStream)
+			if err == nil && chatCompletionStream.Choices != nil && chatCompletionStream.Choices[0].FinishReason != "stop" {
+				w.Write([]byte(chatCompletionStream.Choices[0].Delta.Content))
+				w.(http.Flusher).Flush()
+			}
+		}
 	}
 	// fmt.Fprint(w, "test successful")
 }
@@ -306,7 +305,7 @@ func unescaped(x string) any {
 	return template.HTML(x)
 }
 
-func generateHTML(w http.ResponseWriter, data any, fileNames []string, layout string) {
+func generateHTML(w http.ResponseWriter, data any, fileNames []string) {
 	var files []string
 	t := template.New("")
 	t = t.Funcs(template.FuncMap{"unescaped": unescaped})
@@ -314,7 +313,7 @@ func generateHTML(w http.ResponseWriter, data any, fileNames []string, layout st
 		files = append(files, fmt.Sprintf("templates/%s.html", file))
 	}
 	templates := template.Must(t.ParseFiles(files...))
-	templates.ExecuteTemplate(w, layout, data)
+	templates.ExecuteTemplate(w, "layout", data)
 }
 
 func fetch(url string) ([]byte, error) {
