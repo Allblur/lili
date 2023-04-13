@@ -219,6 +219,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	/* w.Header().Set("cross-origin-embedder-policy", "require-corp")
 	w.Header().Set("cross-origin-opener-policy", "same-origin")
 	w.Header().Set("cross-origin-resource-policy", "same-origin") */
+	key := os.Getenv("OPENAI_API_KEY")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintf(w, "Params Don't null")
@@ -233,7 +234,10 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Invalid JSON format")
 		return
 	}
-	fmt.Printf("key=%s\n", apiParams.Key)
+	fmt.Printf("key=%s\n OPEN KEY=%s", apiParams.Key, key)
+	if apiParams.Key == "" {
+		apiParams.Key = key
+	}
 	if apiParams.Model == "" {
 		apiParams.Model = "gpt-3.5-turbo"
 	}
@@ -252,7 +256,8 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Invalid JSON format, api")
 		return
 	}
-	fmt.Println(string(requestBodyBytes))
+	// fmt.Println(string(requestBodyBytes))
+	fmt.Println("User：" + apiParams.Messages[len(apiParams.Messages)-1].Content)
 	req, err := http.NewRequest(http.MethodPost,
 		"https://api.openai.com/v1/chat/completions",
 		bytes.NewBuffer(requestBodyBytes))
@@ -275,7 +280,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	str := []string{}
+	str := strings.Builder{}
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
 
@@ -283,13 +288,13 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		var chatCompletionStream ChatCompletionStreamResponse
 		headerData := "data: "
 		line := strings.TrimSpace(scanner.Text())
-		fmt.Println(line + "\n")
+		// fmt.Println(line + "\n")
 		if strings.HasPrefix(line, headerData) && line != "data: [DONE]" {
-			line = strings.TrimPrefix(line, headerData)
-			err = json.Unmarshal([]byte(line), &chatCompletionStream)
+			// line = strings.TrimPrefix(line, headerData)
+			err = json.Unmarshal([]byte(line[len(headerData):]), &chatCompletionStream)
 			if err == nil && chatCompletionStream.Choices != nil && chatCompletionStream.Choices[0].FinishReason != "stop" {
 				content := chatCompletionStream.Choices[0].Delta.Content
-				str = append(str, content)
+				str.WriteString(content)
 				w.Write([]byte(content))
 				w.(http.Flusher).Flush()
 			}
@@ -300,7 +305,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "read stream failed.")
 		return
 	}
-	fmt.Println("AI：" + strings.Join(str, ""))
+	fmt.Println("\nAI：" + str.String())
 }
 
 func unescaped(x string) any {
