@@ -216,9 +216,9 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("access-control-allow-headers", "authorization, Content-Type")
 	w.Header().Set("access-control-allow-methods", "*")
 	w.Header().Set("access-control-allow-origin", "*")
-	w.Header().Set("cross-origin-embedder-policy", "require-corp")
+	/* w.Header().Set("cross-origin-embedder-policy", "require-corp")
 	w.Header().Set("cross-origin-opener-policy", "same-origin")
-	w.Header().Set("cross-origin-resource-policy", "same-origin")
+	w.Header().Set("cross-origin-resource-policy", "same-origin") */
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintf(w, "Params Don't null")
@@ -275,21 +275,22 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-
+	str := []string{}
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
 
 	for scanner.Scan() {
 		var chatCompletionStream ChatCompletionStreamResponse
-		headerData := []byte("data: ")
-		line := bytes.TrimSpace(scanner.Bytes())
-		fmt.Print(line)
-		fmt.Print("\nline^^^^^^^")
-		if bytes.HasPrefix(line, headerData) && string(line) != "data: [DONE]" {
-			line = bytes.TrimPrefix(line, headerData)
-			err = json.Unmarshal(line, &chatCompletionStream)
+		headerData := "data: "
+		line := strings.TrimSpace(scanner.Text())
+		fmt.Println(line + "\n")
+		if strings.HasPrefix(line, headerData) && line != "data: [DONE]" {
+			line = strings.TrimPrefix(line, headerData)
+			err = json.Unmarshal([]byte(line), &chatCompletionStream)
 			if err == nil && chatCompletionStream.Choices != nil && chatCompletionStream.Choices[0].FinishReason != "stop" {
-				w.Write([]byte(chatCompletionStream.Choices[0].Delta.Content))
+				content := chatCompletionStream.Choices[0].Delta.Content
+				str = append(str, content)
+				w.Write([]byte(content))
 				w.(http.Flusher).Flush()
 			}
 		}
@@ -299,7 +300,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "read stream failed.")
 		return
 	}
-	// fmt.Fprint(w, "test successful")
+	fmt.Println("AI：" + strings.Join(str, ""))
 }
 
 func unescaped(x string) any {
