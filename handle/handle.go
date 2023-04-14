@@ -212,7 +212,10 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Content-Type", "application/octet-stream")
+	// w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("access-control-allow-headers", "authorization, Content-Type")
 	w.Header().Set("access-control-allow-methods", "*")
 	w.Header().Set("access-control-allow-origin", "*")
@@ -284,19 +287,25 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
 
+	headerData := "data: "
+	headerLen := len(headerData)
 	for scanner.Scan() {
 		var chatCompletionStream ChatCompletionStreamResponse
-		headerData := "data: "
 		line := strings.TrimSpace(scanner.Text())
 		// fmt.Println(line + "\n")
 		if strings.HasPrefix(line, headerData) && line != "data: [DONE]" {
 			// line = strings.TrimPrefix(line, headerData)
-			err = json.Unmarshal([]byte(line[len(headerData):]), &chatCompletionStream)
+			err = json.Unmarshal([]byte(line[headerLen:]), &chatCompletionStream)
 			if err == nil && chatCompletionStream.Choices != nil && chatCompletionStream.Choices[0].FinishReason != "stop" {
 				content := chatCompletionStream.Choices[0].Delta.Content
 				str.WriteString(content)
 				w.Write([]byte(content))
-				w.(http.Flusher).Flush()
+				flusher, ok := w.(http.Flusher)
+				if !ok {
+					return
+				}
+				flusher.Flush()
+				// w.(http.Flusher).Flush()
 			}
 		}
 	}
