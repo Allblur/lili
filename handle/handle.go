@@ -212,11 +212,11 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	// w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Content-Type", "application/octet-stream")
+	// w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("access-control-allow-headers", "authorization, Content-Type")
+	w.Header().Set("access-control-allow-headers", "Content-Type")
 	w.Header().Set("access-control-allow-methods", "*")
 	w.Header().Set("access-control-allow-origin", "*")
 	/* w.Header().Set("cross-origin-embedder-policy", "require-corp")
