@@ -73,7 +73,7 @@ type SearchResult struct {
 }
 
 type Pag struct {
-	Num  int8
+	Num  int
 	Cls  string
 	Q    string
 	IsOn bool
@@ -122,6 +122,11 @@ type ApiParams struct {
 	GptApiQueryParams
 }
 
+var (
+	OPENAI_API_KEY    = os.Getenv("OPENAI_API_KEY")
+	GOOGLEAPI_ACCOUNT = os.Getenv("ACCOUNT")
+)
+
 func Index(w http.ResponseWriter, r *http.Request) {
 	var apiParams ApiParams
 	fmt.Println(apiParams.Model)
@@ -144,7 +149,6 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	origin := "https://www.googleapis.com/customsearch/v1"
 	q := r.URL.Query().Get("q")
 	start := r.URL.Query().Get("start")
-	a := os.Getenv("ACCOUNT")
 	data := &Result{
 		Items:    []Items{},
 		Q:        q,
@@ -162,22 +166,22 @@ func Search(w http.ResponseWriter, r *http.Request) {
 		}
 		start = s
 	}
-	arr := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	arr := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	index, _ := strconv.Atoi(start)
 	for _, v := range arr {
 		cls := ""
 		ison := false
-		if index == int(v) {
+		if index == v {
 			cls = "on"
 			ison = true
 		}
 		pag = append(pag, Pag{Num: v, Cls: cls, Q: q, IsOn: ison})
 	}
-	if q == "" || a == "" {
+	if q == "" || GOOGLEAPI_ACCOUNT == "" {
 		generateHTML(w, data, []string{"searchlayout", "search"})
 		return
 	}
-	json.Unmarshal([]byte(a), &accounts)
+	json.Unmarshal([]byte(GOOGLEAPI_ACCOUNT), &accounts)
 	i := rand.Int31n(int32(len(accounts)))
 	fmt.Println(accounts[i].Key)
 	fmt.Println(accounts[i].Cx)
@@ -207,22 +211,75 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	generateHTML(w, data, []string{"searchlayout", "search"})
 }
 
-func Stream(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+func SearchService(w http.ResponseWriter, r *http.Request) {
+	var accounts []Account
+	var pag []Pag
+	origin := "https://www.googleapis.com/customsearch/v1"
+	q := r.URL.Query().Get("q")
+	start := r.URL.Query().Get("start")
+	data := &Result{
+		Items:    []Items{},
+		Q:        q,
+		Start:    "1",
+		HasItems: false,
+		Pag:      []Pag{},
+	}
+	if q == "" {
+		q = r.FormValue("q")
+	}
+	if start == "" {
+		s := r.FormValue("start")
+		if s == "" {
+			s = "1"
+		}
+		start = s
+	}
+	arr := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	index, _ := strconv.Atoi(start)
+	for _, v := range arr {
+		cls := ""
+		ison := false
+		if index == v {
+			cls = "on"
+			ison = true
+		}
+		pag = append(pag, Pag{Num: v, Cls: cls, Q: q, IsOn: ison})
+	}
+	if q == "" || GOOGLEAPI_ACCOUNT == "" {
+		json.NewEncoder(w).Encode(data)
 		return
 	}
-	w.Header().Set("Content-Type", "application/octet-stream")
-	// w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("access-control-allow-headers", "Content-Type")
-	w.Header().Set("access-control-allow-methods", "*")
-	w.Header().Set("access-control-allow-origin", "*")
-	/* w.Header().Set("cross-origin-embedder-policy", "require-corp")
-	w.Header().Set("cross-origin-opener-policy", "same-origin")
-	w.Header().Set("cross-origin-resource-policy", "same-origin") */
-	key := os.Getenv("OPENAI_API_KEY")
+	json.Unmarshal([]byte(GOOGLEAPI_ACCOUNT), &accounts)
+	i := rand.Int31n(int32(len(accounts)))
+	fmt.Println(accounts[i].Key)
+	fmt.Println(accounts[i].Cx)
+	str := strings.ReplaceAll(q, " ", "")
+	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, 10)
+	if start != "" {
+		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
+	}
+	fmt.Println("url：" + url)
+	b, err := fetch(url)
+	if err != nil {
+		json.NewEncoder(w).Encode(data)
+		return
+	}
+	var searchResult *SearchResult
+	json.Unmarshal(b, &searchResult)
+	hasItems := searchResult.Items != nil && len(searchResult.Items) > 0
+	s := start
+	if hasItems && searchResult.Queries.NextPage != nil && len(searchResult.Queries.NextPage) > 0 {
+		s = strconv.Itoa(searchResult.Queries.NextPage[0].StartIndex)
+	}
+	data.Items = searchResult.Items
+	data.Start = s
+	data.HasItems = hasItems
+	data.Pag = pag
+	fmt.Println("fetch end")
+	json.NewEncoder(w).Encode(data)
+}
+
+func Stream(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintf(w, "Params Don't null")
@@ -237,9 +294,9 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Invalid JSON format")
 		return
 	}
-	fmt.Printf("key=%s\n OPEN KEY=%s", apiParams.Key, key)
+	fmt.Printf("key=%s\n OPEN KEY=%s", apiParams.Key, OPENAI_API_KEY)
 	if apiParams.Key == "" {
-		apiParams.Key = key
+		apiParams.Key = OPENAI_API_KEY
 	}
 	if apiParams.Model == "" {
 		apiParams.Model = "gpt-3.5-turbo"
