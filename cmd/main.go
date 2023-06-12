@@ -9,8 +9,8 @@ func main() {
 	mux := http.NewServeMux()
 	files := http.FileServer(http.Dir("./statics"))
 	mux.Handle("/statics/", http.StripPrefix("/statics/", files))
-	mux.HandleFunc("/", handle.Search)
-	mux.HandleFunc("/search", handle.Index)
+	mux.HandleFunc("/", handle.Index)
+	mux.HandleFunc("/search", handle.Search)
 	mux.HandleFunc("/api/search", cos(handle.SearchService, "application/json;charset=UTF-8", http.MethodGet))
 	mux.HandleFunc("/api/stream", cos(handle.Stream, "application/octet-stream;charset=UTF-8", http.MethodPost))
 
