@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -185,13 +186,13 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	i := rand.Int31n(int32(len(accounts)))
 	fmt.Println(accounts[i].Key)
 	fmt.Println(accounts[i].Cx)
-	str := strings.ReplaceAll(q, " ", "")
-	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, 10)
+	str := url.QueryEscape(q)
+	urlStr := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, 10)
 	if start != "" {
-		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
+		urlStr = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
 	}
-	fmt.Println("url：" + url)
-	b, err := fetch(url)
+	fmt.Println("url：" + urlStr)
+	b, err := fetch(urlStr)
 	if err != nil {
 		generateHTML(w, data, []string{"searchlayout", "search"})
 		return
@@ -253,13 +254,13 @@ func SearchService(w http.ResponseWriter, r *http.Request) {
 	i := rand.Int31n(int32(len(accounts)))
 	fmt.Println(accounts[i].Key)
 	fmt.Println(accounts[i].Cx)
-	str := strings.ReplaceAll(q, " ", "")
-	url := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, 10)
+	str := url.QueryEscape(q)
+	urlStr := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, 10)
 	if start != "" {
-		url = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
+		urlStr = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
 	}
-	fmt.Println("url：" + url)
-	b, err := fetch(url)
+	fmt.Println("url：" + urlStr)
+	b, err := fetch(urlStr)
 	if err != nil {
 		json.NewEncoder(w).Encode(data)
 		return
