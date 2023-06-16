@@ -168,7 +168,10 @@ func Search(w http.ResponseWriter, r *http.Request) {
 		start = s
 	}
 	arr := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	index, _ := strconv.Atoi(start)
+	index, err := strconv.Atoi(start)
+	if err != nil || index > 10 {
+		index = 1
+	}
 	for _, v := range arr {
 		cls := ""
 		ison := false
@@ -236,7 +239,10 @@ func SearchService(w http.ResponseWriter, r *http.Request) {
 		start = s
 	}
 	arr := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	index, _ := strconv.Atoi(start)
+	index, err := strconv.Atoi(start)
+	if err != nil || index > 10 {
+		index = 1
+	}
 	for _, v := range arr {
 		cls := ""
 		ison := false
