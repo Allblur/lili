@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -16,6 +15,11 @@ import (
 
 var ctx = context.Background()
 
+type content struct {
+	Parts []string
+	Role  string
+}
+
 func Gemini(w http.ResponseWriter, r *http.Request) {
 	// Access your API key as an environment variable (see "Set up your API key" above)
 	client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
@@ -24,24 +28,25 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer client.Close()
-	bytes, err := io.ReadAll(r.Body)
-	fmt.Println("bytes::", string(bytes))
-	if err != nil {
-		fmt.Fprintf(w, "Params Don't null.")
-		return
-	}
-	defer r.Body.Close()
-	var params []*genai.Content
-	err = json.Unmarshal(bytes, &params)
-	if err != nil {
+	var params []content
+	model := client.GenerativeModel("gemini-pro-vision")
+	cs := model.StartChat()
+	cs.History = []*genai.Content{}
+	if err = json.NewDecoder(r.Body).Decode(&params); err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, "Invalid JSON format")
 		return
 	}
-	model := client.GenerativeModel("gemini-pro-vision")
-	// Initialize the chat
-	cs := model.StartChat()
-	cs.History = params
+	for i := 0; i < len(params); i++ {
+		parts := []genai.Part{}
+		for j := 0; j < len(params[i].Parts); j++ {
+			parts = append(parts, genai.Text(params[i].Parts[j]))
+		}
+		cs.History = append(cs.History, &genai.Content{
+			Parts: parts,
+			Role:  params[i].Role,
+		})
+	}
 	/* cs.History = []*genai.Content{
 		&genai.Content{
 			Parts: []genai.Part{
