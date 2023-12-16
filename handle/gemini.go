@@ -13,7 +13,10 @@ import (
 	"google.golang.org/api/option"
 )
 
-var ctx = context.Background()
+var (
+	ctx          = context.Background()
+	geminiApiKey = os.Getenv("GEMINI_API_KEY")
+)
 
 type content struct {
 	History []struct {
@@ -25,7 +28,7 @@ type content struct {
 
 func Gemini(w http.ResponseWriter, r *http.Request) {
 	// Access your API key as an environment variable (see "Set up your API key" above)
-	client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
+	client, err := genai.NewClient(ctx, option.WithAPIKey(geminiApiKey))
 	if err != nil {
 		fmt.Fprintf(w, "genai new error.")
 		return
@@ -58,7 +61,7 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			fmt.Fprintf(w, "load stream err.")
+			fmt.Fprintf(w, "load stream err. %+v", err)
 			return
 		}
 		// fmt.Println(resp.Candidates[0].Content.Role, resp.Candidates[0].Content.Parts[0])
