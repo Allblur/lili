@@ -35,7 +35,7 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 	}
 	defer client.Close()
 	var params content
-	model := client.GenerativeModel("gemini-pro-vision")
+	model := client.GenerativeModel("gemini-pro")
 	cs := model.StartChat()
 	cs.History = []*genai.Content{}
 	if err = json.NewDecoder(r.Body).Decode(&params); err != nil {
@@ -53,6 +53,7 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 			Role:  params.History[i].Role,
 		})
 	}
+	fmt.Printf("history: %+v", cs.History)
 	str := strings.Builder{}
 	iter := cs.SendMessageStream(ctx, genai.Text(params.Text))
 	for {
