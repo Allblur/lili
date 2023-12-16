@@ -16,8 +16,11 @@ import (
 var ctx = context.Background()
 
 type content struct {
-	Parts []string
-	Role  string
+	History []struct {
+		Parts []string
+		Role  string
+	}
+	Text string
 }
 
 func Gemini(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +31,7 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer client.Close()
-	var params []content
+	var params content
 	model := client.GenerativeModel("gemini-pro-vision")
 	cs := model.StartChat()
 	cs.History = []*genai.Content{}
@@ -37,32 +40,18 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Invalid JSON format")
 		return
 	}
-	for i := 0; i < len(params); i++ {
+	for i := 0; i < len(params.History); i++ {
 		parts := []genai.Part{}
-		for j := 0; j < len(params[i].Parts); j++ {
-			parts = append(parts, genai.Text(params[i].Parts[j]))
+		for j := 0; j < len(params.History[i].Parts); j++ {
+			parts = append(parts, genai.Text(params.History[i].Parts[j]))
 		}
 		cs.History = append(cs.History, &genai.Content{
 			Parts: parts,
-			Role:  params[i].Role,
+			Role:  params.History[i].Role,
 		})
 	}
-	/* cs.History = []*genai.Content{
-		&genai.Content{
-			Parts: []genai.Part{
-				genai.Text("Hello, I have 2 dogs in my house."),
-			},
-			Role: "user",
-		},
-		&genai.Content{
-			Parts: []genai.Part{
-				genai.Text("Great to meet you. What would you like to know?"),
-			},
-			Role: "model",
-		},
-	} */
 	str := strings.Builder{}
-	iter := cs.SendMessageStream(ctx, genai.Text("How many paws are in my house?"))
+	iter := cs.SendMessageStream(ctx, genai.Text(params.Text))
 	for {
 		resp, err := iter.Next()
 		if err == iterator.Done {
@@ -72,7 +61,7 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "load stream err.")
 		}
 		// fmt.Println(resp.Candidates[0].Content.Role, resp.Candidates[0].Content.Parts[0])
-		content := fmt.Sprintf("%s: %+v", resp.Candidates[0].Content.Role, resp.Candidates[0].Content.Parts)
+		content := fmt.Sprintf("%+v", resp)
 		str.WriteString(content)
 		w.Write([]byte(content))
 		flusher, ok := w.(http.Flusher)
