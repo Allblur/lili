@@ -20,13 +20,14 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 	// Access your API key as an environment variable (see "Set up your API key" above)
 	client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
 	if err != nil {
-		fmt.Fprintf(w, "Params Don't null")
+		fmt.Fprintf(w, "genai new error.")
 		return
 	}
 	defer client.Close()
 	bytes, err := io.ReadAll(r.Body)
+	fmt.Println("bytes::", string(bytes))
 	if err != nil {
-		fmt.Fprintf(w, "Params Don't null")
+		fmt.Fprintf(w, "Params Don't null.")
 		return
 	}
 	defer r.Body.Close()
