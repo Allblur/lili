@@ -59,6 +59,7 @@ func Gemini(w http.ResponseWriter, r *http.Request) {
 		}
 		if err != nil {
 			fmt.Fprintf(w, "load stream err.")
+			return
 		}
 		// fmt.Println(resp.Candidates[0].Content.Role, resp.Candidates[0].Content.Parts[0])
 		content := fmt.Sprintf("%+v", resp)
