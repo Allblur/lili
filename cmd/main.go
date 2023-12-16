@@ -13,6 +13,7 @@ func main() {
 	mux.HandleFunc("/search", handle.Search)
 	mux.HandleFunc("/api/search", cos(handle.SearchService, "application/json;charset=UTF-8", http.MethodGet))
 	mux.HandleFunc("/api/stream", cos(handle.Stream, "application/octet-stream;charset=UTF-8", http.MethodPost))
+	mux.HandleFunc("/api/gemini", cos(handle.Gemini, "application/octet-stream;charset=UTF-8", http.MethodPost))
 
 	server := &http.Server{
 		Addr:    "0.0.0.0:8080",
