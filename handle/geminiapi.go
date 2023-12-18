@@ -14,7 +14,7 @@ type Parts struct {
 }
 
 type Content struct {
-	Role  string  `json:"role"`
+	Role  string  `json:"role,omitempty"`
 	Parts []Parts `json:"parts"`
 }
 
@@ -39,6 +39,27 @@ type ApiRequestBody struct {
 	Contents         []Content        `json:"contents"`
 	SafetySettings   []SafetySettings `json:"safetySettings"`
 	GenerationConfig GenerationConfig `json:"generationConfig"`
+}
+
+type GenerateContentResponse struct {
+	Candidates     []GenerateContentCandidate `json:"candidates"`
+	PromptFeedback PromptFeedback             `json:"promptFeedback"`
+}
+
+type GenerateContentCandidate struct {
+	Content       Content        `json:"content"`
+	FinishReason  string         `json:"finishReason"`
+	Index         int            `json:"index"`
+	SafetyRatings []SafetyRating `json:"safetyRatings"`
+}
+
+type PromptFeedback struct {
+	SafetyRatings []SafetyRating `json:"safetyRatings"`
+}
+
+type SafetyRating struct {
+	Category    string `json:"category"`
+	Probability string `json:"probability"`
 }
 
 func Geminiapi(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +131,18 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("resp.Body==%s\n", string(b)) */
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
+	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		if i := bytes.Index(data, []byte("}\n,\r\n")); i >= 0 {
+			return i + 5, data[0 : i+1], nil
+		}
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		if atEOF {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
 	for scanner.Scan() {
 		// str.WriteString(scanner.Text())
 		fmt.Println(scanner.Text())
