@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 )
 
 type Parts struct {
@@ -106,11 +105,12 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	str := strings.Builder{}
+	// str := strings.Builder{}
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
-		str.WriteString(scanner.Text())
+		// str.WriteString(scanner.Text())
+		fmt.Println(scanner.Text())
 		w.Write([]byte(scanner.Text()))
 		flusher, ok := w.(http.Flusher)
 		if !ok {
@@ -123,5 +123,5 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "read stream failed.")
 		return
 	}
-	fmt.Println("\nAI：" + str.String())
+	fmt.Println("\nAI end." /*  + str.String() */)
 }
