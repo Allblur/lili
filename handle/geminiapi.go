@@ -39,7 +39,7 @@ type ComonBody struct {
 
 type RequestBody struct {
 	ComonBody
-	Vision string `json:"vision"`
+	Version string `json:"version"`
 }
 
 type ApiRequestBody struct {
@@ -86,7 +86,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 			Role:  reqBody.Contents[i].Role,
 		})
 	}
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/gemini-pro:streamGenerateContent?key=%s", reqBody.Vision, os.Getenv("GEMINI_API_KEY"))
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/gemini-pro:streamGenerateContent?key=%s", reqBody.Version, os.Getenv("GEMINI_API_KEY"))
 	apiRequestBody := ApiRequestBody{
 		ComonBody: ComonBody{
 			Contents:         contents,
@@ -162,7 +162,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			break
 		}
-		w.Write([]byte(fmt.Sprintf("{\"text\":\"%s\",\"role\":\"%s\"}", res.Candidates[0].Content.Parts[0].Text, res.Candidates[0].Content.Role)))
+		w.Write([]byte(res.Candidates[0].Content.Parts[0].Text))
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			return
