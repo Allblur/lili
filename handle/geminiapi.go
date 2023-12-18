@@ -43,7 +43,7 @@ type ApiRequestBody struct {
 }
 
 func Geminiapi(w http.ResponseWriter, r *http.Request) {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1/models/gemini-pro:streamGenerateContent?key=%s", os.Getenv("GEMINI_API_KEY"))
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:streamGenerateContent?key=%s", os.Getenv("GEMINI_API_KEY"))
 	reqBody := RequestBody{}
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		fmt.Println(err)
@@ -94,6 +94,9 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 
 	// Set the Content-Type header
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Connection", "keep-alive")
 	// Send the request and get the response
 	client := &http.Client{}
 	resp, err := client.Do(req)
