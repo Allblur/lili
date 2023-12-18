@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type Parts struct {
@@ -126,7 +127,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	// str := strings.Builder{}
+	str := strings.Builder{}
 	/* b, _ := io.ReadAll(resp.Body)
 	fmt.Printf("resp.Body==%s\n", string(b)) */
 	// 处理stream结果
@@ -144,9 +145,16 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		return 0, nil, nil
 	})
 	for scanner.Scan() {
-		// str.WriteString(scanner.Text())
-		fmt.Println(scanner.Text())
-		w.Write([]byte(scanner.Text()))
+		str.WriteString(scanner.Text())
+		txt := scanner.Text()
+		txt = strings.TrimLeft(txt, "[,\r\n")
+		txt = strings.TrimRight(txt, "],\r\n")
+		var res GenerateContentResponse
+		err = json.Unmarshal([]byte(txt), &res)
+		if err != nil {
+			break
+		}
+		w.Write([]byte(res.Candidates[0].Content.Parts[0].Text))
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			return
@@ -158,5 +166,5 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "read stream failed.")
 		return
 	}
-	fmt.Println("\nAI end." /*  + str.String() */)
+	fmt.Println("\nAI end." + str.String())
 }
