@@ -25,21 +25,26 @@ type SafetySettings struct {
 }
 
 type GenerationConfig struct {
-	StopSequences   []string `json:"stopSequences"`
+	StopSequences   []string `json:"stopSequences,omitempty"`
 	Temperature     float64  `json:"temperature"`
 	MaxOutputTokens int      `json:"maxOutputTokens"`
 	TopP            float64  `json:"topP"`
 	TopK            int      `json:"topK"`
 }
 
+type ComonBody struct {
+	Contents         []Content        `json:"contents"`
+	GenerationConfig GenerationConfig `json:"generationConfig"`
+}
+
 type RequestBody struct {
-	Contents []Content `json:"contents"`
+	ComonBody
+	Vision string `json:"vision"`
 }
 
 type ApiRequestBody struct {
-	Contents         []Content        `json:"contents"`
-	SafetySettings   []SafetySettings `json:"safetySettings"`
-	GenerationConfig GenerationConfig `json:"generationConfig"`
+	ComonBody
+	SafetySettings []SafetySettings `json:"safetySettings"`
 }
 
 type GenerateContentResponse struct {
@@ -64,7 +69,6 @@ type SafetyRating struct {
 }
 
 func Geminiapi(w http.ResponseWriter, r *http.Request) {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:streamGenerateContent?key=%s", os.Getenv("GEMINI_API_KEY"))
 	reqBody := RequestBody{}
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		fmt.Println(err)
@@ -82,27 +86,31 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 			Role:  reqBody.Contents[i].Role,
 		})
 	}
-	requestBody := ApiRequestBody{
-		Contents: contents,
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/gemini-pro:streamGenerateContent?key=%s", reqBody.Vision, os.Getenv("GEMINI_API_KEY"))
+	apiRequestBody := ApiRequestBody{
+		ComonBody: ComonBody{
+			Contents:         contents,
+			GenerationConfig: reqBody.GenerationConfig,
+		},
 		SafetySettings: []SafetySettings{
 			{
 				Category:  "HARM_CATEGORY_DANGEROUS_CONTENT",
 				Threshold: "BLOCK_ONLY_HIGH",
 			},
 		},
-		GenerationConfig: GenerationConfig{
-			StopSequences:   []string{"Title"},
+		/* GenerationConfig: GenerationConfig{
+			// StopSequences:   []string{"Title"},
 			Temperature:     1.0,
 			MaxOutputTokens: 800,
 			TopP:            0.8,
 			TopK:            10,
-		},
+		}, */
 	}
 
-	jsonData, err := json.Marshal(requestBody)
+	jsonData, err := json.Marshal(apiRequestBody)
 	if err != nil {
 		fmt.Println(err)
-		fmt.Fprintf(w, "Invalid JSON format. jsonData error %v", err)
+		fmt.Fprint(w, "Invalid JSON format.")
 		return
 	}
 
@@ -123,7 +131,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println(err)
-		fmt.Fprintf(w, "resp error %v", err)
+		fmt.Fprint(w, "resp error.")
 		return
 	}
 	defer resp.Body.Close()
