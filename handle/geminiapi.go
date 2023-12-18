@@ -162,7 +162,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			break
 		}
-		w.Write([]byte(fmt.Sprintf("{\"text\":%s,\"role\":%s}", res.Candidates[0].Content.Parts[0].Text, res.Candidates[0].Content.Role)))
+		w.Write([]byte(fmt.Sprintf("{\"text\":\"%s\",\"role\":\"%s\"}", res.Candidates[0].Content.Parts[0].Text, res.Candidates[0].Content.Role)))
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			return
