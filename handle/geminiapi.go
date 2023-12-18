@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type Parts struct {
@@ -85,7 +87,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a new HTTP request
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -93,9 +95,9 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 
 	// Set the Content-Type header
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	req.Header.Set("Accept", "text/event-stream")
+	/* req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Cache-Control", "no-cache")
-	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Connection", "keep-alive") */
 	// Send the request and get the response
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -106,9 +108,45 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 	// str := strings.Builder{}
+	b, _ := io.ReadAll(resp.Body)
+	fmt.Printf("\nresp.Body==%s", string(b))
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
-	for scanner.Scan() {
+	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		if i := bytes.Index(data, []byte("}\n,\r\n")); i >= 0 {
+			return i + 5, data[0 : i+1], nil
+		}
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		if atEOF {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
+	for {
+		if !scanner.Scan() {
+			fmt.Fprint(w, "read response stream failed.")
+			return
+		}
+		if err = scanner.Err(); err != nil {
+			fmt.Println(err)
+			fmt.Fprint(w, "read response stream failed. err...")
+			return
+		}
+		txt := scanner.Text()
+		// remove head '[' and tail ']'
+		txt = strings.TrimLeft(txt, "[,\r\n")
+		txt = strings.TrimRight(txt, "],\r\n")
+		fmt.Println(txt)
+		w.Write([]byte(txt))
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			return
+		}
+		flusher.Flush()
+	}
+	/* for scanner.Scan() {
 		// str.WriteString(scanner.Text())
 		fmt.Println(scanner.Text())
 		w.Write([]byte(scanner.Text()))
@@ -117,11 +155,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		flusher.Flush()
-	}
-	if err := scanner.Err(); err != nil {
-		fmt.Println(err)
-		fmt.Fprint(w, "read stream failed.")
-		return
-	}
-	fmt.Println("\nAI end." /*  + str.String() */)
+	} */
+
+	// fmt.Println("\nAI end." /*  + str.String() */)
 }
