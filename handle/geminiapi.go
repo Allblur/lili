@@ -139,10 +139,6 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 	}
 	// Set the Content-Type header
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Cache-Control", "no-cache")
-	req.Header.Set("Connection", "keep-alive")
-	// Send the request and get the response
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -176,7 +172,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			break
 		}
-		w.Write([]byte("[model]: " + res.Candidates[0].Content.Parts[0].Text))
+		w.Write([]byte(res.Candidates[0].Content.Parts[0].Text))
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			return
@@ -232,10 +228,6 @@ func Geminivision(w http.ResponseWriter, r *http.Request) {
 
 	// Set the Content-Type header
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Cache-Control", "no-cache")
-	req.Header.Set("Connection", "keep-alive")
-	// Send the request and get the response
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -269,7 +261,7 @@ func Geminivision(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			break
 		}
-		w.Write([]byte("[model]: " + res.Candidates[0].Content.Parts[0].Text))
+		w.Write([]byte(res.Candidates[0].Content.Parts[0].Text))
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			return
@@ -281,5 +273,5 @@ func Geminivision(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "read stream failed.")
 		return
 	}
-	fmt.Println("\nAI end." + str.String())
+	fmt.Println("\nGeminivision end." + str.String())
 }
