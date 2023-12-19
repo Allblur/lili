@@ -67,6 +67,30 @@ type SafetyRating struct {
 	Category    string `json:"category"`
 	Probability string `json:"probability"`
 }
+type VisionReqParts struct {
+	Text       string     `json:"text,omitempty"`
+	InlineData InlineData `json:"inline_data,omitempty"`
+}
+
+type VisionReqContents struct {
+	Parts []VisionReqParts `json:"parts"`
+}
+
+type InlineData struct {
+	MimeType string `json:"mime_type"`
+	Data     string `json:"data"`
+}
+
+type VisionReq struct {
+	Contents []VisionReqContents `json:"contents"`
+	Version  string              `json:"version"`
+}
+
+type VisionApiReq struct {
+	Contents         []VisionReqContents `json:"contents"`
+	GenerationConfig GenerationConfig    `json:"generationConfig"`
+	SafetySettings   []SafetySettings    `json:"safetySettings"`
+}
 
 func Geminiapi(w http.ResponseWriter, r *http.Request) {
 	reqBody := RequestBody{}
@@ -98,16 +122,101 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 				Threshold: "BLOCK_ONLY_HIGH",
 			},
 		},
-		/* GenerationConfig: GenerationConfig{
-			// StopSequences:   []string{"Title"},
-			Temperature:     1.0,
-			MaxOutputTokens: 800,
-			TopP:            0.8,
-			TopK:            10,
-		}, */
 	}
 
 	jsonData, err := json.Marshal(apiRequestBody)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, "Invalid JSON format.")
+		return
+	}
+
+	// Create a new HTTP request
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	// Set the Content-Type header
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Connection", "keep-alive")
+	// Send the request and get the response
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, "resp error.")
+		return
+	}
+	defer resp.Body.Close()
+	str := strings.Builder{}
+	// 处理stream结果
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		if i := bytes.Index(data, []byte("}\n,\r\n")); i >= 0 {
+			return i + 5, data[0 : i+1], nil
+		}
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		if atEOF {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
+	for scanner.Scan() {
+		str.WriteString(scanner.Text())
+		txt := scanner.Text()
+		txt = strings.TrimLeft(txt, "[,\r\n")
+		txt = strings.TrimRight(txt, "],\r\n")
+		var res GenerateContentResponse
+		err = json.Unmarshal([]byte(txt), &res)
+		if err != nil {
+			break
+		}
+		w.Write([]byte("[model]: " + res.Candidates[0].Content.Parts[0].Text))
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			return
+		}
+		flusher.Flush()
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, "read stream failed.")
+		return
+	}
+	fmt.Println("\nAI end." + str.String())
+}
+
+func Geminivision(w http.ResponseWriter, r *http.Request) {
+	reqBody := VisionReq{}
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, "Invalid JSON format")
+		return
+	}
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/gemini-pro-vision:streamGenerateContent?key=%s", reqBody.Version, os.Getenv("GEMINI_API_KEY"))
+	apiRequestBody := VisionApiReq{
+		Contents: reqBody.Contents,
+		GenerationConfig: GenerationConfig{
+			StopSequences:   []string{"Title"},
+			Temperature:     1.0,
+			MaxOutputTokens: 4096,
+			TopP:            0.8,
+			TopK:            10,
+		},
+		SafetySettings: []SafetySettings{
+			{
+				Category:  "HARM_CATEGORY_DANGEROUS_CONTENT",
+				Threshold: "BLOCK_ONLY_HIGH",
+			},
+		},
+	}
+	jsonData, err := json.Marshal(apiRequestBody)
+	// fmt.Println("jsonData==", string(jsonData))
 	if err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, "Invalid JSON format.")
@@ -136,8 +245,6 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 	str := strings.Builder{}
-	/* b, _ := io.ReadAll(resp.Body)
-	fmt.Printf("resp.Body==%s\n", string(b)) */
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
@@ -162,7 +269,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			break
 		}
-		w.Write([]byte(res.Candidates[0].Content.Parts[0].Text))
+		w.Write([]byte("[model]: " + res.Candidates[0].Content.Parts[0].Text))
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			return

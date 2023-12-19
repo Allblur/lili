@@ -15,6 +15,7 @@ func main() {
 	mux.HandleFunc("/api/stream", cos(handle.Stream, "application/octet-stream;charset=UTF-8", http.MethodPost))
 	mux.HandleFunc("/api/gemini1", cos(handle.Geminiapi, "application/octet-stream;charset=UTF-8", http.MethodPost))
 	mux.HandleFunc("/api/gemini", cos(handle.Geminiapi, "application/json;charset=UTF-8", http.MethodPost))
+	mux.HandleFunc("/api/geminivision", cos(handle.Geminivision, "application/json;charset=UTF-8", http.MethodPost))
 
 	server := &http.Server{
 		Addr:    "0.0.0.0:8080",
