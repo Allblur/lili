@@ -67,13 +67,9 @@ type SafetyRating struct {
 	Category    string `json:"category"`
 	Probability string `json:"probability"`
 }
-type VisionReqParts struct {
-	Text       string     `json:"text,omitempty"`
-	InlineData InlineData `json:"inline_data,omitempty"`
-}
 
 type VisionReqContents struct {
-	Parts []VisionReqParts `json:"parts"`
+	Parts []interface{} `json:"parts"`
 }
 
 type InlineData struct {
@@ -92,7 +88,7 @@ type VisionApiReq struct {
 	SafetySettings   []SafetySettings    `json:"safetySettings"`
 }
 
-func Geminiapi(w http.ResponseWriter, r *http.Request) {
+func Gapi(w http.ResponseWriter, r *http.Request) {
 	reqBody := RequestBody{}
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		fmt.Println(err)
@@ -147,6 +143,11 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		fmt.Println(resp.Body)
+		fmt.Fprint(w, "Invalid value.")
+		return
+	}
 	str := strings.Builder{}
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
@@ -187,7 +188,7 @@ func Geminiapi(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("\nAI end." + str.String())
 }
 
-func Geminivision(w http.ResponseWriter, r *http.Request) {
+func Gv(w http.ResponseWriter, r *http.Request) {
 	reqBody := VisionReq{}
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		fmt.Println(err)
@@ -195,6 +196,7 @@ func Geminivision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/gemini-pro-vision:streamGenerateContent?key=%s", reqBody.Version, os.Getenv("GEMINI_API_KEY"))
+	// reqBody.Contents[0].Parts[0] = Parts{reqBody.Contents[0].Parts[0]}
 	apiRequestBody := VisionApiReq{
 		Contents: reqBody.Contents,
 		GenerationConfig: GenerationConfig{
@@ -218,7 +220,6 @@ func Geminivision(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Invalid JSON format.")
 		return
 	}
-
 	// Create a new HTTP request
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -236,6 +237,11 @@ func Geminivision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		fmt.Println(resp.Body)
+		fmt.Fprint(w, "Invalid value.")
+		return
+	}
 	str := strings.Builder{}
 	// 处理stream结果
 	scanner := bufio.NewScanner(resp.Body)
