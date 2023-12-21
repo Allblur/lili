@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -123,12 +123,29 @@ type ApiParams struct {
 	GptApiQueryParams
 }
 
-var (
-	OPENAI_API_KEY    = os.Getenv("OPENAI_API_KEY")
-	GOOGLEAPI_ACCOUNT = os.Getenv("ACCOUNT")
-)
+type Handle struct {
+	OpenaiApiKey          string
+	GoogleApiAccount      string
+	GeminiApiKey          string
+	GoogleCustomsearchUrl string
+	OpenaiApiUrl          string
+	GeminiApiUrl          string
+	HttpClient            *http.Client
+}
 
-func Index(w http.ResponseWriter, r *http.Request) {
+func New() *Handle {
+	return &Handle{
+		OpenaiApiKey:          os.Getenv("OPENAI_API_KEY"),
+		GoogleApiAccount:      os.Getenv("ACCOUNT"),
+		GeminiApiKey:          os.Getenv("GEMINI_API_KEY"),
+		GoogleCustomsearchUrl: "https://www.googleapis.com/customsearch/v1",
+		OpenaiApiUrl:          "https://api.openai.com/v1/chat/completions",
+		GeminiApiUrl:          "https://generativelanguage.googleapis.com/",
+		HttpClient:            &http.Client{},
+	}
+}
+
+func (h *Handle) Index(w http.ResponseWriter, r *http.Request) {
 	var apiParams ApiParams
 	fmt.Println(apiParams.Model)
 	fmt.Println(r.Cookies())
@@ -144,10 +161,9 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	generateHTML(w, data, files)
 }
 
-func Search(w http.ResponseWriter, r *http.Request) {
+func (h *Handle) Search(w http.ResponseWriter, r *http.Request) {
 	var accounts []Account
 	var pag []Pag
-	origin := "https://www.googleapis.com/customsearch/v1"
 	q := r.URL.Query().Get("q")
 	start := r.URL.Query().Get("start")
 	data := &Result{
@@ -181,21 +197,21 @@ func Search(w http.ResponseWriter, r *http.Request) {
 		}
 		pag = append(pag, Pag{Num: v, Cls: cls, Q: q, IsOn: ison})
 	}
-	if q == "" || GOOGLEAPI_ACCOUNT == "" {
+	if q == "" || h.GoogleApiAccount == "" {
 		generateHTML(w, data, []string{"searchlayout", "search"})
 		return
 	}
-	json.Unmarshal([]byte(GOOGLEAPI_ACCOUNT), &accounts)
+	json.Unmarshal([]byte(h.GoogleApiAccount), &accounts)
 	i := rand.Int31n(int32(len(accounts)))
 	fmt.Println(accounts[i].Key)
 	fmt.Println(accounts[i].Cx)
 	str := url.QueryEscape(q)
-	urlStr := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, 10)
+	urlStr := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", h.GoogleCustomsearchUrl, str, accounts[i].Key, accounts[i].Cx, 10)
 	if start != "" {
-		urlStr = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
+		urlStr = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", h.GoogleCustomsearchUrl, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
 	}
 	fmt.Println("url：" + urlStr)
-	b, err := fetch(urlStr)
+	b, err := fetch(urlStr, h.HttpClient)
 	if err != nil {
 		generateHTML(w, data, []string{"searchlayout", "search"})
 		return
@@ -215,10 +231,9 @@ func Search(w http.ResponseWriter, r *http.Request) {
 	generateHTML(w, data, []string{"searchlayout", "search"})
 }
 
-func SearchService(w http.ResponseWriter, r *http.Request) {
+func (h *Handle) SearchService(w http.ResponseWriter, r *http.Request) {
 	var accounts []Account
 	var pag []Pag
-	origin := "https://www.googleapis.com/customsearch/v1"
 	q := r.URL.Query().Get("q")
 	start := r.URL.Query().Get("start")
 	data := &Result{
@@ -252,21 +267,21 @@ func SearchService(w http.ResponseWriter, r *http.Request) {
 		}
 		pag = append(pag, Pag{Num: v, Cls: cls, Q: q, IsOn: ison})
 	}
-	if q == "" || GOOGLEAPI_ACCOUNT == "" {
+	if q == "" || h.GoogleApiAccount == "" {
 		json.NewEncoder(w).Encode(data)
 		return
 	}
-	json.Unmarshal([]byte(GOOGLEAPI_ACCOUNT), &accounts)
+	json.Unmarshal([]byte(h.GoogleApiAccount), &accounts)
 	i := rand.Int31n(int32(len(accounts)))
 	fmt.Println(accounts[i].Key)
 	fmt.Println(accounts[i].Cx)
 	str := url.QueryEscape(q)
-	urlStr := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, 10)
+	urlStr := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d", h.GoogleCustomsearchUrl, str, accounts[i].Key, accounts[i].Cx, 10)
 	if start != "" {
-		urlStr = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", origin, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
+		urlStr = fmt.Sprintf("%s?q=%s&key=%s&cx=%s&start=%d&num=%d", h.GoogleCustomsearchUrl, str, accounts[i].Key, accounts[i].Cx, (index-1)*10+1, 10)
 	}
 	fmt.Println("url：" + urlStr)
-	b, err := fetch(urlStr)
+	b, err := fetch(urlStr, h.HttpClient)
 	if err != nil {
 		json.NewEncoder(w).Encode(data)
 		return
@@ -286,8 +301,8 @@ func SearchService(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
-func Stream(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
+func (h *Handle) Stream(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintf(w, "Params Don't null")
 		return
@@ -301,9 +316,9 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Invalid JSON format")
 		return
 	}
-	fmt.Printf("key=%s\n OPEN KEY=%s", apiParams.Key, OPENAI_API_KEY)
+	fmt.Printf("key=%s\n OPEN KEY=%s", apiParams.Key, h.OpenaiApiKey)
 	if apiParams.Key == "" {
-		apiParams.Key = OPENAI_API_KEY
+		apiParams.Key = h.OpenaiApiKey
 	}
 	if apiParams.Model == "" {
 		apiParams.Model = "gpt-3.5-turbo"
@@ -326,7 +341,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	// fmt.Println(string(requestBodyBytes))
 	fmt.Println("User：" + apiParams.Messages[len(apiParams.Messages)-1].Content)
 	req, err := http.NewRequest(http.MethodPost,
-		"https://api.openai.com/v1/chat/completions",
+		h.OpenaiApiUrl,
 		bytes.NewBuffer(requestBodyBytes))
 
 	if err != nil {
@@ -339,8 +354,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := h.HttpClient.Do(req)
 	if err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, "Network error, api")
@@ -396,7 +410,7 @@ func generateHTML(w http.ResponseWriter, data any, fileNames []string) {
 	templates.ExecuteTemplate(w, "layout", data)
 }
 
-func fetch(url string) ([]byte, error) {
+func fetch(url string, client *http.Client) ([]byte, error) {
 	var headers = map[string]string{
 		"Accept":          "*/*",
 		"Accept-Language": "zh-CN,zh;q=0.8,gl;q=0.6,zh-TW;q=0.4;en",
@@ -411,13 +425,13 @@ func fetch(url string) ([]byte, error) {
 	for k, v := range headers {
 		request.Header.Add(k, v)
 	}
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := client.Do(request)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
 		return nil, err
 	}
-	byte, _ := ioutil.ReadAll(resp.Body)
+	byte, _ := io.ReadAll(resp.Body)
 	return byte, nil
 }

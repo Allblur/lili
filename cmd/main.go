@@ -8,13 +8,14 @@ import (
 func main() {
 	mux := http.NewServeMux()
 	files := http.FileServer(http.Dir("./statics"))
+	h := handle.New()
 	mux.Handle("/statics/", http.StripPrefix("/statics/", files))
-	mux.HandleFunc("/", handle.Index)
-	mux.HandleFunc("/search", handle.Search)
-	mux.HandleFunc("/api/search", cos(handle.SearchService, "application/json;charset=UTF-8", http.MethodGet))
-	mux.HandleFunc("/api/stream", cos(handle.Stream, "application/octet-stream;charset=UTF-8", http.MethodPost))
-	mux.HandleFunc("/api/g", cos(handle.Gapi, "application/json;charset=UTF-8", http.MethodPost))
-	mux.HandleFunc("/api/gv", cos(handle.Gv, "application/json;charset=UTF-8", http.MethodPost))
+	mux.HandleFunc("/", h.Index)
+	mux.HandleFunc("/search", h.Search)
+	mux.HandleFunc("/api/search", cos(h.SearchService, "application/json;charset=UTF-8", http.MethodGet))
+	mux.HandleFunc("/api/stream", cos(h.Stream, "application/octet-stream;charset=UTF-8", http.MethodPost))
+	mux.HandleFunc("/api/g", cos(h.Gapi, "application/json;charset=UTF-8", http.MethodPost))
+	mux.HandleFunc("/api/gv", cos(h.Gv, "application/json;charset=UTF-8", http.MethodPost))
 
 	server := &http.Server{
 		Addr:    "0.0.0.0:8080",

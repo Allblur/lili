@@ -5,8 +5,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -88,7 +88,14 @@ type VisionApiReq struct {
 	SafetySettings   []SafetySettings    `json:"safetySettings"`
 }
 
-func Gapi(w http.ResponseWriter, r *http.Request) {
+var safetySettings = []SafetySettings{
+	{
+		Category:  "HARM_CATEGORY_DANGEROUS_CONTENT",
+		Threshold: "BLOCK_ONLY_HIGH",
+	},
+}
+
+func (h *Handle) Gapi(w http.ResponseWriter, r *http.Request) {
 	reqBody := RequestBody{}
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		fmt.Println(err)
@@ -106,18 +113,13 @@ func Gapi(w http.ResponseWriter, r *http.Request) {
 			Role:  reqBody.Contents[i].Role,
 		})
 	}
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/gemini-pro:streamGenerateContent?key=%s", reqBody.Version, os.Getenv("GEMINI_API_KEY"))
+	url := fmt.Sprintf("%s%s/models/gemini-pro:streamGenerateContent?key=%s", h.GeminiApiUrl, reqBody.Version, h.GeminiApiKey)
 	apiRequestBody := ApiRequestBody{
 		ComonBody: ComonBody{
 			Contents:         contents,
 			GenerationConfig: reqBody.GenerationConfig,
 		},
-		SafetySettings: []SafetySettings{
-			{
-				Category:  "HARM_CATEGORY_DANGEROUS_CONTENT",
-				Threshold: "BLOCK_ONLY_HIGH",
-			},
-		},
+		SafetySettings: safetySettings,
 	}
 
 	jsonData, err := json.Marshal(apiRequestBody)
@@ -135,8 +137,7 @@ func Gapi(w http.ResponseWriter, r *http.Request) {
 	}
 	// Set the Content-Type header
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := h.HttpClient.Do(req)
 	if err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, "resp error.")
@@ -150,24 +151,12 @@ func Gapi(w http.ResponseWriter, r *http.Request) {
 	}
 	str := strings.Builder{}
 	// 处理stream结果
-	scanner := bufio.NewScanner(resp.Body)
-	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
-		if i := bytes.Index(data, []byte("}\n,\r\n")); i >= 0 {
-			return i + 5, data[0 : i+1], nil
-		}
-		if atEOF && len(data) == 0 {
-			return 0, nil, nil
-		}
-		if atEOF {
-			return len(data), data, nil
-		}
-		return 0, nil, nil
-	})
+	scanner := makeScanner(resp.Body)
 	for scanner.Scan() {
-		str.WriteString(scanner.Text())
 		txt := scanner.Text()
 		txt = strings.TrimLeft(txt, "[,\r\n")
 		txt = strings.TrimRight(txt, "],\r\n")
+		str.WriteString(txt)
 		var res GenerateContentResponse
 		err = json.Unmarshal([]byte(txt), &res)
 		if err != nil {
@@ -188,14 +177,14 @@ func Gapi(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("\nAI end." + str.String())
 }
 
-func Gv(w http.ResponseWriter, r *http.Request) {
+func (h *Handle) Gv(w http.ResponseWriter, r *http.Request) {
 	reqBody := VisionReq{}
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, "Invalid JSON format")
 		return
 	}
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/gemini-pro-vision:streamGenerateContent?key=%s", reqBody.Version, os.Getenv("GEMINI_API_KEY"))
+	url := fmt.Sprintf("%s%s/models/gemini-pro-vision:streamGenerateContent?key=%s", h.GeminiApiUrl, reqBody.Version, h.GeminiApiKey)
 	// reqBody.Contents[0].Parts[0] = Parts{reqBody.Contents[0].Parts[0]}
 	apiRequestBody := VisionApiReq{
 		Contents: reqBody.Contents,
@@ -206,12 +195,7 @@ func Gv(w http.ResponseWriter, r *http.Request) {
 			TopP:            0.8,
 			TopK:            10,
 		},
-		SafetySettings: []SafetySettings{
-			{
-				Category:  "HARM_CATEGORY_DANGEROUS_CONTENT",
-				Threshold: "BLOCK_ONLY_HIGH",
-			},
-		},
+		SafetySettings: safetySettings,
 	}
 	jsonData, err := json.Marshal(apiRequestBody)
 	// fmt.Println("jsonData==", string(jsonData))
@@ -229,8 +213,7 @@ func Gv(w http.ResponseWriter, r *http.Request) {
 
 	// Set the Content-Type header
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := h.HttpClient.Do(req)
 	if err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, "resp error.")
@@ -244,24 +227,12 @@ func Gv(w http.ResponseWriter, r *http.Request) {
 	}
 	str := strings.Builder{}
 	// 处理stream结果
-	scanner := bufio.NewScanner(resp.Body)
-	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
-		if i := bytes.Index(data, []byte("}\n,\r\n")); i >= 0 {
-			return i + 5, data[0 : i+1], nil
-		}
-		if atEOF && len(data) == 0 {
-			return 0, nil, nil
-		}
-		if atEOF {
-			return len(data), data, nil
-		}
-		return 0, nil, nil
-	})
+	scanner := makeScanner(resp.Body)
 	for scanner.Scan() {
-		str.WriteString(scanner.Text())
 		txt := scanner.Text()
 		txt = strings.TrimLeft(txt, "[,\r\n")
 		txt = strings.TrimRight(txt, "],\r\n")
+		str.WriteString(txt)
 		var res GenerateContentResponse
 		err = json.Unmarshal([]byte(txt), &res)
 		if err != nil {
@@ -280,4 +251,22 @@ func Gv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println("\nGeminivision end." + str.String())
+}
+
+func makeScanner(r io.Reader) *bufio.Scanner {
+	// 处理stream结果
+	scanner := bufio.NewScanner(r)
+	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		if i := bytes.Index(data, []byte("}\n,\r\n")); i >= 0 {
+			return i + 5, data[0 : i+1], nil
+		}
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		if atEOF {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
+	return scanner
 }
