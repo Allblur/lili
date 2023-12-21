@@ -69,7 +69,7 @@ type SafetyRating struct {
 }
 
 type VisionReqContents struct {
-	Parts []interface{} `json:"parts"`
+	Parts []any `json:"parts"`
 }
 
 type InlineData struct {
