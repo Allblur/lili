@@ -124,24 +124,32 @@ type ApiParams struct {
 }
 
 type Handle struct {
-	OpenaiApiKey          string
-	GoogleApiAccount      string
-	GeminiApiKey          string
-	GoogleCustomsearchUrl string
-	OpenaiApiUrl          string
-	GeminiApiUrl          string
-	HttpClient            *http.Client
+	OpenaiApiKey             string
+	GoogleApiAccount         string
+	GeminiApiKey             string
+	GoogleCustomsearchUrl    string
+	OpenaiApiUrl             string
+	GeminiApiUrl             string
+	AzureApiUrl              string
+	AzureApiGenerateImageUrl string
+	AzureApiKey              string
+	AzureApiToken            string
+	HttpClient               *http.Client
 }
 
 func New() *Handle {
 	return &Handle{
-		OpenaiApiKey:          os.Getenv("OPENAI_API_KEY"),
-		GoogleApiAccount:      os.Getenv("ACCOUNT"),
-		GeminiApiKey:          os.Getenv("GEMINI_API_KEY"),
-		GoogleCustomsearchUrl: "https://www.googleapis.com/customsearch/v1",
-		OpenaiApiUrl:          "https://api.openai.com/v1/chat/completions",
-		GeminiApiUrl:          "https://generativelanguage.googleapis.com/",
-		HttpClient:            &http.Client{},
+		OpenaiApiKey:             os.Getenv("OPENAI_API_KEY"),
+		GoogleApiAccount:         os.Getenv("ACCOUNT"),
+		GeminiApiKey:             os.Getenv("GEMINI_API_KEY"),
+		AzureApiUrl:              os.Getenv("AZURE_API_URL"),
+		AzureApiGenerateImageUrl: os.Getenv("AZURE_API_GIMG_URL"),
+		AzureApiKey:              os.Getenv("AZURE_API_KEY"),
+		AzureApiToken:            os.Getenv("AZURE_API_TOKEN"),
+		GoogleCustomsearchUrl:    "https://www.googleapis.com/customsearch/v1",
+		OpenaiApiUrl:             "https://api.openai.com/v1/chat/completions",
+		GeminiApiUrl:             "https://generativelanguage.googleapis.com/",
+		HttpClient:               &http.Client{},
 	}
 }
 

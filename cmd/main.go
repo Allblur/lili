@@ -16,7 +16,8 @@ func main() {
 	mux.HandleFunc("/api/stream", cos(h.Stream, "application/octet-stream;charset=UTF-8", http.MethodPost))
 	mux.HandleFunc("/api/g", cos(h.Gapi, "application/json;charset=UTF-8", http.MethodPost))
 	mux.HandleFunc("/api/gv", cos(h.Gv, "application/json;charset=UTF-8", http.MethodPost))
-
+	mux.HandleFunc("/api/completions", cos(h.Completions, "application/json;charset=UTF-8", http.MethodPost))
+	mux.HandleFunc("/api/generateImage", cos(h.GenerateImage, "application/json;charset=UTF-8", http.MethodPost))
 	server := &http.Server{
 		Addr:    "0.0.0.0:8080",
 		Handler: mux,
