@@ -107,7 +107,6 @@ func (h *Handle) GenerateImage(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(data)
 		return
 	}
-	defer res.Body.Close()
 	b, _ := io.ReadAll(res.Body)
 	var result map[string]any
 	json.Unmarshal(b, &result)

@@ -12,6 +12,8 @@ func main() {
 	mux.Handle("/statics/", http.StripPrefix("/statics/", files))
 	mux.HandleFunc("/", h.Index)
 	mux.HandleFunc("/search", h.Search)
+	mux.HandleFunc("/upload", h.Upload)
+	mux.HandleFunc("/uploadfile", h.UploadFile)
 	mux.HandleFunc("/api/search", cos(h.SearchService, "application/json;charset=UTF-8", http.MethodGet))
 	mux.HandleFunc("/api/stream", cos(h.Stream, "application/octet-stream;charset=UTF-8", http.MethodPost))
 	mux.HandleFunc("/api/g", cos(h.Gapi, "application/json;charset=UTF-8", http.MethodPost))

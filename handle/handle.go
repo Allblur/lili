@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -167,6 +168,90 @@ func (h *Handle) Index(w http.ResponseWriter, r *http.Request) {
 	}
 	files := []string{"layout", "index"}
 	generateHTML(w, data, files)
+}
+
+func (h *Handle) Upload(w http.ResponseWriter, r *http.Request) {
+	for _, cookie := range r.Cookies() {
+		fmt.Println("cookie name == " + cookie.Name + "\ncookie value == " + cookie.Value)
+	}
+	var data = struct {
+		Success bool
+		Message string
+	}{
+		Success: false,
+		Message: "请选择上传文件",
+	}
+	files := []string{"layout", "upload"}
+	generateHTML(w, data, files)
+}
+
+// 文件上传
+func (h *Handle) UploadFile(w http.ResponseWriter, r *http.Request) {
+	// 准备返回数据
+	data := struct {
+		Success bool
+		Message string
+	}{
+		Success: false,
+		Message: "文件上传失败",
+	}
+	tpls := []string{"layout", "upload"}
+	// 设置最大上传大小为100MB
+	r.ParseMultipartForm(100 << 20)
+	fmt.Println("开始...")
+	// 获取上传的多个文件
+	files := r.MultipartForm.File["file"]
+	if len(files) == 0 {
+		fmt.Println("没有上传文件")
+		// http.Error(w, "请选择要上传的文件", http.StatusBadRequest)
+		data.Message = "请选择要上传的文件"
+		data.Success = false
+		generateHTML(w, data, tpls)
+		return
+	}
+	// 创建上传目录
+	uploadDir := "./medias"
+	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+		data.Message = "创建上传目录失败"
+		data.Success = false
+		generateHTML(w, data, tpls)
+		return
+	}
+
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			fmt.Printf("打开文件 %s 失败: %v\n", fileHeader.Filename, err)
+			continue
+		}
+		defer file.Close()
+
+		// 处理每个文件的上传逻辑
+		// 创建目标文件
+		dst, err := os.Create(filepath.Join(uploadDir, fileHeader.Filename))
+		if err != nil {
+			data.Message = "创建目标文件失败"
+			data.Success = false
+			generateHTML(w, data, tpls)
+			return
+		}
+		defer dst.Close()
+
+		// 复制文件内容
+		if _, err := io.Copy(dst, file); err != nil {
+			// fmt.Println("保存文件失败:", err)
+			// http.Error(w, "保存文件失败", http.StatusInternalServerError)
+			data.Message = "保存文件失败"
+			data.Success = false
+			generateHTML(w, data, tpls)
+			return
+		}
+
+		fmt.Printf("文件 %s 上传成功\n", fileHeader.Filename)
+	}
+	data.Message = "文件上传成功"
+	data.Success = true
+	generateHTML(w, data, tpls)
 }
 
 func (h *Handle) Search(w http.ResponseWriter, r *http.Request) {
