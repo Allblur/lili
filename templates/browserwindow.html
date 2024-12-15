@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-id, initial-scale=1.0">
+    <title>窗口顺序记录</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #window-info {
+            margin-bottom: 20px;
+        }
+        #window-order {
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>窗口顺序记录</h1>
+    <div id="window-info">
+        <p>当前窗口 ID: <span id="current-window-id"></span></p>
+    </div>
+    <div id="window-order">
+        <p>当前窗口顺序: <span id="order-list"></span></p>
+    </div>
+
+    <script>
+        // 创建 BroadcastChannel
+        const channel = new BroadcastChannel('window-order');
+
+        // 生成当前窗口的唯一标识
+        const windowId = Date.now() + '-' + Math.random().toString(36).substring(2);
+
+        // 从 localStorage 中读取窗口顺序
+        let windowOrder = JSON.parse(localStorage.getItem('windowOrder')) || [];
+
+        // 更新页面显示
+        function updateUI() {
+            document.getElementById('current-window-id').textContent = windowId;
+            document.getElementById('order-list').textContent = windowOrder.join(', ');
+        }
+
+        // 监听来自其他窗口的消息
+        channel.onmessage = function (event) {
+            if (event.data.type === 'updateOrder') {
+                // 更新窗口顺序
+                windowOrder = event.data.order;
+                localStorage.setItem('windowOrder', JSON.stringify(windowOrder));
+                updateUI();
+            }
+        };
+
+        // 页面加载时，通知其他窗口更新窗口顺序
+        function updateWindowOrder() {
+            // 将当前窗口的 ID 添加到窗口顺序中
+            if (!windowOrder.includes(windowId)) {
+                windowOrder.push(windowId);
+            }
+            // 更新 localStorage
+            localStorage.setItem('windowOrder', JSON.stringify(windowOrder));
+            // 广播新的窗口顺序
+            channel.postMessage({ type: 'updateOrder', order: windowOrder });
+            updateUI();
+        }
+
+        // 页面加载时，更新窗口顺序
+        updateWindowOrder();
+
+        // 页面关闭时，通知其他窗口更新窗口顺序
+        window.addEventListener('beforeunload', () => {
+            // 从窗口顺序中移除当前窗口的 ID
+            windowOrder = windowOrder.filter(id => id !== windowId);
+            // 更新 localStorage
+            localStorage.setItem('windowOrder', JSON.stringify(windowOrder));
+            // 广播新的窗口顺序
+            channel.postMessage({ type: 'updateOrder', order: windowOrder });
+        });
+    </script>
+</body>
+</html>
